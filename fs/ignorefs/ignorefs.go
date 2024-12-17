@@ -11,6 +11,7 @@ import (
 
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/internal/cachedir"
+	"github.com/kopia/kopia/internal/ospath"
 	"github.com/kopia/kopia/internal/wcmatch"
 	"github.com/kopia/kopia/repo/logging"
 	"github.com/kopia/kopia/snapshot"
@@ -378,7 +379,18 @@ func (c *ignoreContext) overrideFromPolicy(fp *policy.FilesPolicy, dirPath strin
 
 func (c *ignoreContext) loadDotIgnoreFiles(ctx context.Context, dirPath string, dotIgnoreFiles []fs.File) error {
 	for _, f := range dotIgnoreFiles {
-		matchers, err := parseIgnoreFile(ctx, dirPath, f)
+		var (
+			matchers []wcmatch.WildcardMatcher
+			err      error
+		)
+
+		// If the file is an absolute path, use it accordingly.
+		if ospath.IsAbs(f.Name()) {
+			matchers, err = parseIgnoreFile(ctx, "/", f)
+		} else {
+			matchers, err = parseIgnoreFile(ctx, dirPath, f)
+		}
+
 		if err != nil {
 			return errors.Wrapf(err, "unable to parse ignore file %v", f.Name())
 		}
